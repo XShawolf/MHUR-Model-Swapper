@@ -1,0 +1,16 @@
+# Miscellaneous
+assets
+repak
+utils.txt
+variables.py
+
+# Build outputs
+bin/
+obj/
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
