@@ -3,6 +3,7 @@ assets
 repak
 utils.txt
 variables.py
+__pycache__/
 
 # Build outputs
 bin/
