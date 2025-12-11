@@ -18,6 +18,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.central_widget.addWidget(self.choosemodfile)
         self.characters_list = CharactersList(parent=self)
     
+    def viewSkinsList(self, character):
+        self.skinsList = SkinsList(character)
+        self.central_widget.addWidget(self.skinsList)
+        self.central_widget.setCurrentWidget(self.skinsList)
+    
     def closeEvent( self, event):
         # Clean up extracted mod files on exit
         if os.path.exists("assets/mod"):
@@ -44,8 +49,11 @@ class ChooseModFileWidget(QtWidgets.QWidget):
         if file_name:
             subprocess.run(["repak/repak.exe", "unpack", "-o", f"assets/mod", file_name])
             main_window = self.parent_window
-            main_window.central_widget.addWidget(main_window.characters_list)
-            main_window.central_widget.setCurrentWidget(main_window.characters_list)
+            # Temporal functionality, redirect to skins list
+            selectedCharacter = os.listdir("assets/mod/HerovsGame/Content/Character")[0]
+            main_window.viewSkinsList(selectedCharacter)
+            #main_window.central_widget.addWidget(main_window.characters_list)
+            #main_window.central_widget.setCurrentWidget(main_window.characters_list)
         
 class CharactersList(QtWidgets.QWidget):
     def __init__(self, parent=None):
@@ -83,7 +91,6 @@ class SkinsList(QtWidgets.QWidget):
         self.button.clicked.connect(self.go_back)
         self.layout.addWidget(self.button, 0, 0)
         for skin in skins:
-            print(skin)
             skin_id = str(skin[0]["Value"])
             # Extract skin filename from asset path
             skin_path = skin[1]["Value"]["AssetPath"]["AssetName"].partition("Character/")[2].partition(".")[0] #Format: ChXXX/Model/Default/Mesh/SK_ChXXX_Default_00
@@ -110,15 +117,37 @@ class SkinsList(QtWidgets.QWidget):
             if str(file).endswith(".uasset"):
                 subprocess.run([variables.uejsonPath, "-e", file])
                 json_path = str(file).replace(".uasset", ".json")
+                mesh_path = str(file).partition("SK_")[0]
                 crumbs = str(file).split("\\")
                 filename = crumbs[len(crumbs)-1].partition(".")[0] # Format: Sk_ChXXX_Default_00
         # Edit JSON to swap mesh
-        with open(json_path, 'r', encoding='utf-8') as f:
+        # TO-DO: Add option to select more than one replace, have in mind that JSON being moved breaks it
+        # TO-DO: Replace outside of NameMap
+        with open(json_path, 'r+', encoding='utf-8') as f:
             data = json.load(f)
             namemap = data["NameMap"]
             for name in namemap:
+                # Find names that need to be replaced
                 if filename in name and "PhysicsAsset" not in name:
-                    print("Found name: " + name)
+                    if "Model/" in name:
+                        namemap[namemap.index(name)] = namemap[namemap.index(name)].partition("Character/")[0] + namemap[namemap.index(name)].partition("Character/")[1] + skin
+                    else:
+                        namemap[namemap.index(name)] = skin.partition("Mesh/")[2]
+
+            f.seek(0)
+            json.dump(data, f, indent=4)
+        # Make correct file structure for repak
+        newPath = "assets/mod/HerovsGame/Content/Character/"
+        for folder in skin.split("/")[:-1]:
+                if not os.path.exists(newPath + folder):
+                    os.mkdir(newPath + folder)
+                newPath = newPath + folder + "/"
+
+        for file in os.listdir(mesh_path):
+            final_path = "assets/mod/HerovsGame/Content/Character/"
+            os.rename(mesh_path + file, final_path + skin + skin.partition("Mesh/")[2] + "." + file.split(".")[1])
+        # Import JSON to UAsset
+        subprocess.run([variables.uejsonPath, "-i", final_path + skin + skin.partition("Mesh/")[2] + ".json"])
 
 if __name__ == "__main__":
     # Extract characters PA using repak
