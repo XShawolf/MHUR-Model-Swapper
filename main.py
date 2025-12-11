@@ -87,7 +87,7 @@ class SkinsList(QtWidgets.QWidget):
         skins = data["Exports"][0]["Data"][0]["Value"]
         column = 0
         row = 1
-        self.button = QtWidgets.QPushButton("Back")
+        self.button = QtWidgets.QPushButton("Choose another mod")
         self.button.clicked.connect(self.go_back)
         self.layout.addWidget(self.button, 0, 0)
         for skin in skins:
@@ -106,7 +106,7 @@ class SkinsList(QtWidgets.QWidget):
 
     def go_back(self):
         main_window = self.parent().parent()
-        main_window.central_widget.setCurrentWidget(main_window.characters_list)
+        main_window.central_widget.setCurrentWidget(main_window.choosemodfile)
 
     def exportMod(self, skin):
         # Export mesh JSON
@@ -122,17 +122,19 @@ class SkinsList(QtWidgets.QWidget):
                 filename = crumbs[len(crumbs)-1].partition(".")[0] # Format: Sk_ChXXX_Default_00
         # Edit JSON to swap mesh
         # TO-DO: Add option to select more than one replace, have in mind that JSON being moved breaks it
-        # TO-DO: Replace outside of NameMap
         with open(json_path, 'r+', encoding='utf-8') as f:
             data = json.load(f)
+            # Find names that need to be replaced
             namemap = data["NameMap"]
             for name in namemap:
-                # Find names that need to be replaced
                 if filename in name and "PhysicsAsset" not in name:
                     if "Model/" in name:
                         namemap[namemap.index(name)] = namemap[namemap.index(name)].partition("Character/")[0] + namemap[namemap.index(name)].partition("Character/")[1] + skin
                     else:
                         namemap[namemap.index(name)] = skin.partition("Mesh/")[2]
+            # Change export
+            data["Exports"][0]["ObjectName"] = skin.partition("Mesh/")[2]
+
 
             f.seek(0)
             json.dump(data, f, indent=4)
@@ -145,14 +147,20 @@ class SkinsList(QtWidgets.QWidget):
 
         for file in os.listdir(mesh_path):
             final_path = "assets/mod/HerovsGame/Content/Character/"
-            os.rename(mesh_path + file, final_path + skin + skin.partition("Mesh/")[2] + "." + file.split(".")[1])
+            os.rename(mesh_path + file, final_path + skin + "." + file.split(".")[1])
         # Import JSON to UAsset
-        subprocess.run([variables.uejsonPath, "-i", final_path + skin + skin.partition("Mesh/")[2] + ".json"])
+        subprocess.run([variables.uejsonPath, "-i", final_path + skin + ".json"])
+        #Save mod pak
+        save_path = QtWidgets.QFileDialog.getSaveFileName(self, "Save Mod PAK", "", "PAK files (*.pak)")
+        subprocess.run(["repak/repak.exe", "pack", "assets/mod", save_path[0]])
 
 if __name__ == "__main__":
     # Extract characters PA using repak
     subprocess.run(["repak/repak.exe", "--aes-key", variables.aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][1-9]/PA_Ch[0-9][0-9][0-9].*", variables.path])
     # Extract JSON files using UEJSON
+    for character in os.listdir("assets/HerovsGame/Content/Character"):
+            pa_path = os.path.join("assets/HerovsGame/Content/Character", character, f"PA_{character}.uasset")
+            subprocess.run([variables.uejsonPath, "-e", pa_path])
     if not (os.path.exists("assets/HerovsGame/Content/Character")):
         for character in os.listdir("assets/HerovsGame/Content/Character"):
             pa_path = os.path.join("assets/HerovsGame/Content/Character", character, f"PA_{character}.uasset")
