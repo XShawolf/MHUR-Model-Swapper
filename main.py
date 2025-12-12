@@ -1,11 +1,14 @@
 import sys
 import os
 import subprocess
-from PySide6 import QtCore, QtWidgets, QtGui
+from PySide6 import QtWidgets
 from pathlib import Path
-import variables
 import json
 import shutil
+
+aesKey="0x332F41B1130F125444A35F420EC6D05EA3E27A972A36DAD90C83FC6958D941C7"
+path="C:\\Program Files (x86)\\Steam\\steamapps\\common\\My Hero Ultra Rumble\\HerovsGame\\Content\\Paks\\HerovsGame-WindowsNoEditor.pak"
+uejsonPath="UEJSON\\UEJSON\\bin\\Release\\net8.0\\UEJSON.exe"
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -18,8 +21,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.central_widget.addWidget(self.choosemodfile)
         self.characters_list = CharactersList(parent=self)
     
-    def viewSkinsList(self, character):
-        self.skinsList = SkinsList(character)
+    def viewSkinsList(self, character, mod_file):
+        self.skinsList = SkinsList(character, mod_file)
         self.central_widget.addWidget(self.skinsList)
         self.central_widget.setCurrentWidget(self.skinsList)
     
@@ -51,7 +54,7 @@ class ChooseModFileWidget(QtWidgets.QWidget):
             main_window = self.parent_window
             # Temporal functionality, redirect to skins list
             selectedCharacter = os.listdir("assets/mod/HerovsGame/Content/Character")[0]
-            main_window.viewSkinsList(selectedCharacter)
+            main_window.viewSkinsList(selectedCharacter, file_name)
             #main_window.central_widget.addWidget(main_window.characters_list)
             #main_window.central_widget.setCurrentWidget(main_window.characters_list)
         
@@ -78,8 +81,9 @@ class CharactersList(QtWidgets.QWidget):
         self.parent_window.central_widget.setCurrentWidget(skins_widget)
 
 class SkinsList(QtWidgets.QWidget):
-    def __init__(self, character):
+    def __init__(self, character, mod_file):
         super().__init__()
+        self.mod_file = mod_file
         self.layout = QtWidgets.QGridLayout(self)
         json_path = os.path.join("assets/HerovsGame/Content/Character", character, f"PA_{character}.json")
         with open(json_path, 'r', encoding='utf-8') as f:
@@ -110,18 +114,16 @@ class SkinsList(QtWidgets.QWidget):
 
     def exportMod(self, skin):
         # Export mesh JSON
-        print("Exporting skin: " + skin)
         path = Path("assets/mod/HerovsGame/Content/Character")
         path = list(path.rglob("Mesh"))
         for file in path[0].iterdir():
             if str(file).endswith(".uasset"):
-                subprocess.run([variables.uejsonPath, "-e", file])
+                subprocess.run([uejsonPath, "-e", file])
                 json_path = str(file).replace(".uasset", ".json")
                 mesh_path = str(file).partition("SK_")[0]
                 crumbs = str(file).split("\\")
                 filename = crumbs[len(crumbs)-1].partition(".")[0] # Format: Sk_ChXXX_Default_00
         # Edit JSON to swap mesh
-        # TO-DO: Add option to select more than one replace, have in mind that JSON being moved breaks it
         with open(json_path, 'r+', encoding='utf-8') as f:
             data = json.load(f)
             # Find names that need to be replaced
@@ -149,22 +151,29 @@ class SkinsList(QtWidgets.QWidget):
             final_path = "assets/mod/HerovsGame/Content/Character/"
             os.rename(mesh_path + file, final_path + skin + "." + file.split(".")[1])
         # Import JSON to UAsset
-        subprocess.run([variables.uejsonPath, "-i", final_path + skin + ".json"])
+        subprocess.run([uejsonPath, "-i", final_path + skin + ".json"])
         #Save mod pak
         save_path = QtWidgets.QFileDialog.getSaveFileName(self, "Save Mod PAK", "", "PAK files (*.pak)")
-        subprocess.run(["repak/repak.exe", "pack", "assets/mod", save_path[0]])
+        if save_path[0].partition(".")[0].endswith("_P"):
+            exportPath = save_path[0].partition(".")[0] + ".pak"
+        else:
+            exportPath = save_path[0].partition(".")[0] + "_P.pak"
+        subprocess.run(["repak/repak.exe", "pack", "assets/mod", exportPath])
+        # Clean up and prepare for next export
+        shutil.rmtree("assets/mod")
+        subprocess.run(["repak/repak.exe", "unpack", "-o", f"assets/mod", self.mod_file])
 
 if __name__ == "__main__":
     # Extract characters PA using repak
-    subprocess.run(["repak/repak.exe", "--aes-key", variables.aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][1-9]/PA_Ch[0-9][0-9][0-9].*", variables.path])
+    subprocess.run(["repak/repak.exe", "--aes-key", aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][1-9]/PA_Ch[0-9][0-9][0-9].*", path])
     # Extract JSON files using UEJSON
     for character in os.listdir("assets/HerovsGame/Content/Character"):
             pa_path = os.path.join("assets/HerovsGame/Content/Character", character, f"PA_{character}.uasset")
-            subprocess.run([variables.uejsonPath, "-e", pa_path])
+            subprocess.run([uejsonPath, "-e", pa_path])
     if not (os.path.exists("assets/HerovsGame/Content/Character")):
         for character in os.listdir("assets/HerovsGame/Content/Character"):
             pa_path = os.path.join("assets/HerovsGame/Content/Character", character, f"PA_{character}.uasset")
-            subprocess.run([variables.uejsonPath, "-e", pa_path])
+            subprocess.run([uejsonPath, "-e", pa_path])
     app = QtWidgets.QApplication([])
     widget = MainWindow()
     widget.show()
