@@ -8,7 +8,7 @@ import shutil
 
 aesKey="0x332F41B1130F125444A35F420EC6D05EA3E27A972A36DAD90C83FC6958D941C7"
 path="C:\\Program Files (x86)\\Steam\\steamapps\\common\\My Hero Ultra Rumble\\HerovsGame\\Content\\Paks\\HerovsGame-WindowsNoEditor.pak"
-uejsonPath="UEJSON\\UEJSON.exe"
+uejsonPath="UEJSON\\UEJSON\\bin\\Release\\net8.0\\win-x64\\publish\\UEJSON.exe"
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -164,6 +164,14 @@ class SkinsList(QtWidgets.QWidget):
         subprocess.run(["repak/repak.exe", "unpack", "-o", f"assets/mod", self.mod_file])
 
 if __name__ == "__main__":
+    app = QtWidgets.QApplication([])
+    if not os.path.exists(path):
+        path = QtWidgets.QFileDialog.getOpenFileName(
+            None,
+            "Choose HerovsGame PAK file",
+            "",
+            "PAK files (*.pak*)"
+        )[0]
     # Extract characters PA using repak
     subprocess.run(["repak/repak.exe", "--aes-key", aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][1-9]/PA_Ch[0-9][0-9][0-9].*", path])
     # Extract JSON files using UEJSON
@@ -174,7 +182,6 @@ if __name__ == "__main__":
         for character in os.listdir("assets/HerovsGame/Content/Character"):
             pa_path = os.path.join("assets/HerovsGame/Content/Character", character, f"PA_{character}.uasset")
             subprocess.run([uejsonPath, "-e", pa_path])
-    app = QtWidgets.QApplication([])
     widget = MainWindow()
     widget.show()
     
