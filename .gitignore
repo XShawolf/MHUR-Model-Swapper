@@ -6,6 +6,9 @@ repak
 # Build outputs
 bin/
 obj/
+dist/
+build/
+main.spec
 
 # Visual Studio files
 .vs/

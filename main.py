@@ -8,7 +8,7 @@ import shutil
 
 aesKey="0x332F41B1130F125444A35F420EC6D05EA3E27A972A36DAD90C83FC6958D941C7"
 path="C:\\Program Files (x86)\\Steam\\steamapps\\common\\My Hero Ultra Rumble\\HerovsGame\\Content\\Paks\\HerovsGame-WindowsNoEditor.pak"
-uejsonPath="UEJSON\\UEJSON\\bin\\Release\\net8.0\\UEJSON.exe"
+uejsonPath="UEJSON\\UEJSON.exe"
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
