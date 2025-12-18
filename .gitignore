@@ -1,7 +1,7 @@
 # Miscellaneous
 __pycache__/
 assets
-repak
+dependencies
 
 # Build outputs
 bin/
@@ -9,6 +9,7 @@ obj/
 dist/
 build/
 main.spec
+UEJSON/UEJSON.exe
 
 # Visual Studio files
 .vs/

@@ -24,10 +24,6 @@ class Program
             case "-i":
                 ImportAsset(path);
                 break;
-
-            default:
-                Console.WriteLine($"Unknown option: {mode}");
-                break;
         }
     }
 
@@ -46,8 +42,6 @@ class Program
 
             string jsonPath = Path.ChangeExtension(assetPath, ".json");
             File.WriteAllText(jsonPath, json);
-
-            Console.WriteLine($"Exported asset to: {jsonPath}");
         }
         catch (Exception ex)
         {
