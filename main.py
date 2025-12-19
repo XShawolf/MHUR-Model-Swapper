@@ -1,7 +1,7 @@
 import sys
 import os
 import subprocess
-from PySide6 import QtWidgets, QtGui
+from PySide6 import QtWidgets, QtGui, QtCore
 from pathlib import Path
 import json
 import shutil
@@ -102,11 +102,17 @@ class CharactersList(QtWidgets.QWidget):
         self.parent_window.central_widget.addWidget(skins_widget)
         self.parent_window.central_widget.setCurrentWidget(skins_widget)
 
-class SkinsList(QtWidgets.QWidget):
+class SkinsList(QtWidgets.QScrollArea):
     def __init__(self, character, mod_file):
-        super().__init__()
+        super().__init__()  
+        self.items = []
         self.mod_file = mod_file
-        self.layout = QtWidgets.QGridLayout(self)
+        self.container = QtWidgets.QWidget()
+        self.layout = QtWidgets.QGridLayout(self.container)
+        self.container.setLayout(self.layout)
+        self.setWidgetResizable(True) 
+        self.setWidget(self.container)
+
         json_path = os.path.join("assets/HerovsGame/Content/Character", character, f"PA_{character}.json")
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -121,24 +127,30 @@ class SkinsList(QtWidgets.QWidget):
             # Extract skin filename from asset path
             skin_path = skin[1]["Value"]["AssetPath"]["AssetName"].partition("Character/")[2].partition(".")[0] #Format: ChXXX/Model/Default/Mesh/SK_ChXXX_Default_00
             skin_name = skin[1]["Value"]["AssetPath"]["AssetName"].partition("Mesh/")[2].partition(".")[0] # Format: Sk_ChXXX_Default_00
-            self.button = QtWidgets.QPushButton(skin_name + " (" + skin_id + ")")
-            images = os.listdir((f"assets\\HerovsGame\\Content\\Character\\{character}\\GUI\\Costume\\LL"))
+            images = os.listdir((f"assets\\HerovsGame\\Content\\Character\\{character}\\GUI\\Costume\\L"))
             for image in images:
                 if image.__contains__(skin_id) and image.endswith(".png"):
-                    labelImage = os.path.join(f"assets\\HerovsGame\\Content\\Character\\{character}\\GUI\\Costume\\LL", image)
-            self.label = QtWidgets.QLabel(pixmap=QtGui.QPixmap(labelImage))
-            self.label.setMaximumSize(150, 150)
-            self.label.setBuddy(self.button)
-            self.button.setMinimumSize(150, 150)  # Square size (150x150)
-            self.button.clicked.connect(lambda exportMod, s=skin_path: self.exportMod(s))
+                    labelImage = os.path.join(f"assets\\HerovsGame\\Content\\Character\\{character}\\GUI\\Costume\\L", image)
+            pixmap=QtGui.QPixmap(labelImage)
+            pixmap = pixmap.scaled(300, 300, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+            self.label = QtWidgets.QLabel(pixmap=pixmap)
+            self.label.setMaximumHeight(300)
+            self.button = QtWidgets.QPushButton(skin_name + " (" + skin_id + ")")
+            self.button.setMaximumHeight(300)
+            self.button.clicked.connect(lambda _, s=skin_path: self.exportMod(s))
+            available_width = self.width()
+            columns = max(1, available_width // 280)
+            index = len(self.items)
+            row = (index // columns) + 1
+            column = index % columns
             self.layout.addWidget(self.label, row, column)
             self.layout.addWidget(self.button, row, column)
-            column = column + 1
-            if column > 4:
-                column = 0
-                row = row + 1
+            self.items.append((self.label, self.button))
+            column += 1
+
 
     def go_back(self):
+        shutil.rmtree("assets/mod")
         main_window = self.parent().parent()
         main_window.central_widget.setCurrentWidget(main_window.choosemodfile)
 
@@ -186,9 +198,10 @@ class SkinsList(QtWidgets.QWidget):
         save_path = QtWidgets.QFileDialog.getSaveFileName(self, "Save Mod PAK", "", "PAK files (*.pak)")
         if save_path[0].partition(".")[0].endswith("_P"):
             exportPath = save_path[0].partition(".")[0] + ".pak"
-        else:
+            subprocess.run([repakPath, "pack", "assets/mod", exportPath])
+        elif save_path[0] != "":
             exportPath = save_path[0].partition(".")[0] + "_P.pak"
-        subprocess.run([repakPath, "pack", "assets/mod", exportPath])
+            subprocess.run([repakPath, "pack", "assets/mod", exportPath])
         # Clean up and prepare for next export
         shutil.rmtree("assets/mod")
         subprocess.run([repakPath, "unpack", "-o", f"assets/mod", self.mod_file])
@@ -197,17 +210,18 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication([])
     # Extract characters PA and skins images using repak
     subprocess.run([repakPath, "--aes-key", aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][1-9]/PA_Ch[0-9][0-9][0-9].*", gamePath])
-    subprocess.run([repakPath, "--aes-key", aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][1-9]/GUI/Costume/LL/*0_LL.*", gamePath])
+    subprocess.run([repakPath, "--aes-key", aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][1-9]/GUI/Costume/L/*0_L.*", gamePath])
     # Extract JSON files using UEJSON
     for character in os.listdir("assets/HerovsGame/Content/Character"):
             pa_path = os.path.join("assets/HerovsGame/Content/Character", character, f"PA_{character}.uasset")
-            subprocess.run([uejsonPath, "-e", pa_path])
-            gui_path = os.path.join("assets\\HerovsGame\\Content\\Character", character, "GUI\\Costume\\LL")
+            if not os.path.exists(pa_path.replace(".uasset", ".json")):
+                subprocess.run([uejsonPath, "-e", pa_path])
+            gui_path = os.path.join("assets\\HerovsGame\\Content\\Character", character, "GUI\\Costume\\L")
             for skinImage in os.listdir(gui_path):
                 skinPath = os.path.join(gui_path, skinImage)
                 if skinImage.endswith(".uasset") and not (os.path.exists(skinPath.replace(".uasset", ".png")) or os.path.exists(skinPath.replace(".uasset", ".tga"))):
                     subprocess.run(["python", ue4ddsPath, skinPath, f"--save_folder={gui_path}", "--mode=export", "--export_as=tga", "--skip_non_texture"])
-                    subprocess.run([ffmpegPath, "-i", skinPath.replace(".uasset", ".tga"), "-vf", "scale=150:150",skinPath.replace(".uasset", ".png")])
+                    subprocess.run([ffmpegPath, "-i", skinPath.replace(".uasset", ".tga"), skinPath.replace(".uasset", ".png")])
     if not (os.path.exists("assets/HerovsGame/Content/Character")):
         for character in os.listdir("assets/HerovsGame/Content/Character"):
             pa_path = os.path.join("assets/HerovsGame/Content/Character", character, f"PA_{character}.uasset")
