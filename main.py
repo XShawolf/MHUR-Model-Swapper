@@ -47,6 +47,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("MHUR Model Swapper")
+        self.setWindowIcon(QtGui.QPixmap("icon.ico"))
         self.resize(1024, 768)
         self.central_widget = QtWidgets.QStackedWidget()
         self.setCentralWidget(self.central_widget)
