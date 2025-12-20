@@ -20,10 +20,11 @@ if os.path.exists("dependencies/ue4dds/main.py"):
 else:
     ue4ddsPath=resource_path("dependencies/ue4dds/main.py")
 # Initialize config variables
+app = QtWidgets.QApplication([])
 if not os.path.exists("assets/config"):
     os.makedirs("assets/config")
     aesKey="0x332F41B1130F125444A35F420EC6D05EA3E27A972A36DAD90C83FC6958D941C7"
-    gamePath="C:\\Program Files (x86)\\Steam\\steamapps\\common\\My Hero Ultra Rumble\\HerovsGame\\Content\\Paks\\HerovsGame-WindowsNoEditor.pak"
+    gamePath="D:\\Program Files (x86)\\Steam\\steamapps\\common\\My Hero Ultra Rumble\\HerovsGame\\Content\\Paks\\HerovsGame-WindowsNoEditor.pak"
     if not os.path.exists(gamePath):
         gamePath = QtWidgets.QFileDialog.getOpenFileName(
             None,
@@ -115,7 +116,7 @@ class CharactersList(QtWidgets.QWidget):
         for character in os.listdir("assets/HerovsGame/Content/Character"):
             button = QtWidgets.QPushButton(character)
             button.setMinimumSize(150, 150)
-            button.clicked.connect(lambda showSkins, c=character: self.show_skins(c))
+            button.clicked.connect(lambda _, c=character: self.show_skins(c))
             self.layout.addWidget(button, row, column)
             column = column + 1
             if column > 9:
@@ -188,31 +189,35 @@ class SkinsList(QtWidgets.QScrollArea):
     def exportMod(self, skin):
         # Export mesh JSON
         path = Path("assets/mod/HerovsGame/Content/Character")
-        path = list(path.rglob("Mesh"))
-        for file in path[0].iterdir():
-            if str(file).endswith(".uasset"):
+        path = next(path.rglob("Mesh"), None)
+        for file in path.iterdir():
+            if file.parents[1] == "Default":
+                meshFile = "SK_" + file.parents[3].name + "_Default_00.uasset"
+            else:
+                meshFile = "SK_" + file.parents[4].name + "_" + file.parents[2].name + file.parents[1].name + ".uasset"
+            if str(file).endswith(meshFile):
                 subprocess.run([uejsonPath, "-e", file], creationflags=subprocess.CREATE_NO_WINDOW)
                 json_path = str(file).replace(".uasset", ".json")
                 mesh_path = str(file).partition("SK_")[0]
                 crumbs = str(file).split("\\")
                 filename = crumbs[len(crumbs)-1].partition(".")[0] # Format: Sk_ChXXX_Default_00
-        # Edit JSON to swap mesh
-        with open(json_path, 'r+', encoding='utf-8') as f:
-            data = json.load(f)
-            # Find names that need to be replaced
-            namemap = data["NameMap"]
-            for name in namemap:
-                if filename in name and "PhysicsAsset" not in name:
-                    if "Model/" in name:
-                        namemap[namemap.index(name)] = namemap[namemap.index(name)].partition("Character/")[0] + namemap[namemap.index(name)].partition("Character/")[1] + skin
-                    else:
-                        namemap[namemap.index(name)] = skin.partition("Mesh/")[2]
-            # Change export
-            data["Exports"][0]["ObjectName"] = skin.partition("Mesh/")[2]
+                # Edit JSON to swap mesh
+                with open(json_path, 'r+', encoding='utf-8') as f:
+                    data = json.load(f)
+                    # Find names that need to be replaced
+                    namemap = data["NameMap"]
+                    for name in namemap:
+                        if filename in name and "PhysicsAsset" not in name:
+                            if "Model/" in name:
+                                namemap[namemap.index(name)] = namemap[namemap.index(name)].partition("Character/")[0] + namemap[namemap.index(name)].partition("Character/")[1] + skin
+                            else:
+                                namemap[namemap.index(name)] = skin.partition("Mesh/")[2]
+                    # Change export
+                    data["Exports"][0]["ObjectName"] = skin.partition("Mesh/")[2]
 
 
-            f.seek(0)
-            json.dump(data, f, indent=4)
+                    f.seek(0)
+                    json.dump(data, f, indent=4)
         # Make correct file structure for repak
         newPath = "assets/mod/HerovsGame/Content/Character/"
         for folder in skin.split("/")[:-1]:
@@ -239,10 +244,9 @@ class SkinsList(QtWidgets.QScrollArea):
 
 if __name__ == "__main__":
     print("Launching program, it might take a while the first time!")
-    app = QtWidgets.QApplication([])
     # Extract characters PA and skins images using repak
     subprocess.run([repakPath, "--aes-key", aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][1-9]/PA_Ch[0-9][0-9][0-9].*", gamePath], creationflags=subprocess.CREATE_NO_WINDOW)
-    subprocess.run([repakPath, "--aes-key", aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][1-9]/GUI/Costume/L/*0_L.*", gamePath], creationflags=subprocess.CREATE_NO_WINDOW)
+    subprocess.run([repakPath, "--aes-key", aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][1-9]/GUI/Costume/L/*0_*L.*", gamePath], creationflags=subprocess.CREATE_NO_WINDOW)
     # Extract JSON files using UEJSON
     for character in os.listdir("assets/HerovsGame/Content/Character"):
             pa_path = os.path.join("assets/HerovsGame/Content/Character", character, f"PA_{character}.uasset")
