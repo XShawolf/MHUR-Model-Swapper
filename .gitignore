@@ -8,7 +8,7 @@ bin/
 obj/
 dist/
 build/
-main.spec
+*.spec
 UEJSON/UEJSON.exe
 
 # Visual Studio files

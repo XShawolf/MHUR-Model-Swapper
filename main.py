@@ -5,13 +5,20 @@ from PySide6 import QtWidgets, QtGui, QtCore
 from pathlib import Path
 import json
 import shutil
-
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 # Dependencies
 uejsonPath="UEJSON/UEJSON.exe"
 repakPath="dependencies/repak/repak.exe"
-ue4ddsPath="dependencies/ue4dds/main.py"
 ffmpegPath="dependencies/ffmpeg/ffmpeg.exe"
-
+if os.path.exists("dependencies/ue4dds/main.py"):
+    ue4ddsPath="dependencies/ue4dds/main.py"
+else:
+    ue4ddsPath=resource_path("dependencies/ue4dds/main.py")
 # Initialize config variables
 if not os.path.exists("assets/config"):
     os.makedirs("assets/config")
@@ -230,6 +237,7 @@ class SkinsList(QtWidgets.QScrollArea):
         subprocess.run([repakPath, "unpack", "-o", f"assets/mod", self.mod_file], creationflags=subprocess.CREATE_NO_WINDOW)
 
 if __name__ == "__main__":
+    print("Launching program, it might take a while the first time!")
     app = QtWidgets.QApplication([])
     # Extract characters PA and skins images using repak
     subprocess.run([repakPath, "--aes-key", aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][1-9]/PA_Ch[0-9][0-9][0-9].*", gamePath], creationflags=subprocess.CREATE_NO_WINDOW)
