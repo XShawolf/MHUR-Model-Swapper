@@ -6,6 +6,7 @@ from pathlib import Path
 from util import resource_path
 import json
 import shutil
+import re
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -196,10 +197,12 @@ class SkinsList(QtWidgets.QScrollArea):
                                     if "Model/" in name:
                                         namemap[iName] = namemap[iName].partition("Character/")[0] + namemap[iName].partition("Character/")[1] + skin
                                     else:
-                                        namemap[iName] = skin.partition("Mesh/")[2]
+                                        namemap[iName] = re.sub(filename.split(".")[0], skin.partition("Mesh/")[2], namemap[iName], flags=re.IGNORECASE)
                             # Change exports
                             for export in data["Exports"]:
-                                if filename.casefold().split(".")[0] == export["ObjectName"].casefold(): export["ObjectName"] = skin.partition("Mesh/")[2]
+                                if filename.casefold().split(".")[0] in export["ObjectName"].casefold(): 
+                                    export["ObjectName"] = re.sub(filename.split(".")[0], skin.partition("Mesh/")[2], export["ObjectName"], flags=re.IGNORECASE)
+
                             f.seek(0)
                             json.dump(data, f, indent=4)
 
