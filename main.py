@@ -170,63 +170,80 @@ class SkinsList(QtWidgets.QScrollArea):
     def exportMod(self, skin):
         # Export mesh JSON
         path = Path("assets/mod/HerovsGame/Content/Character")
-        path = next(path.rglob("Mesh"), None)
-        for file in path.iterdir():
-            if file.parents[1].name == "Default":
-                meshFile = "SK_" + file.parents[3].name + "_Default_00.uasset"
-            else:
-                meshFile = "SK_" + file.parents[4].name + "_" + file.parents[2].name + file.parents[1].name + ".uasset"
-            if str(file).casefold().endswith(meshFile.casefold()):
-                subprocess.run([uejsonPath, "-e", file])
-                json_path = str(file).replace(".uasset", ".json")
-                mesh_path = str(file.parent)
-                filename = file.name # Format: SK_ChXXX_Default_00.ext
+        meshPaths = path.rglob("Mesh")
+        # Refactor this thing so I don't get sad when looking at so many indents
+        for path in meshPaths:
+            for file in path.iterdir():
+                if file.name.casefold().startswith('sk_ch') and file.name.casefold().endswith('_00.uasset'):
+                    if file.parents[1].name == "Default":
+                        meshFile = "SK_" + file.parents[3].name + "_Default_00.uasset"
+                    else:
+                        meshFile = "SK_" + file.parents[4].name + "_" + file.parents[2].name + file.parents[1].name + ".uasset"
+                    if str(file).casefold().endswith(meshFile.casefold()):
+                        subprocess.run([uejsonPath, "-e", file])
+                        json_path = str(file).replace(".uasset", ".json")
+                        mesh_path = str(file.parent)
+                        filename = file.name # Format: SK_ChXXX_Default_00.ext
 
-                # Edit JSON to swap mesh
-                with open(json_path, 'r+', encoding='utf-8') as f:
-                    data = json.load(f)
-                    # Find names that need to be replaced
-                    namemap = data["NameMap"]
-                    for name in namemap:
-                        iName = namemap.index(name)
-                        if filename.casefold().split(".")[0] in str(name).casefold() and "PhysicsAsset" not in name:
-                            if "Model/" in name:
-                                namemap[iName] = namemap[iName].partition("Character/")[0] + namemap[iName].partition("Character/")[1] + skin
-                            else:
-                                namemap[iName] = skin.partition("Mesh/")[2]
-                    # Change exports
-                    for export in data["Exports"]:
-                        if filename.casefold().split(".")[0] == export["ObjectName"].casefold(): export["ObjectName"] = skin.partition("Mesh/")[2]
-                    f.seek(0)
-                    json.dump(data, f, indent=4)
+                        # Edit JSON to swap mesh
+                        with open(json_path, 'r+', encoding='utf-8') as f:
+                            data = json.load(f)
+                            # Find names that need to be replaced
+                            namemap = data["NameMap"]
+                            for name in namemap:
+                                iName = namemap.index(name)
+                                if filename.casefold().split(".")[0] in str(name).casefold() and "PhysicsAsset" not in name:
+                                    if "Model/" in name:
+                                        namemap[iName] = namemap[iName].partition("Character/")[0] + namemap[iName].partition("Character/")[1] + skin
+                                    else:
+                                        namemap[iName] = skin.partition("Mesh/")[2]
+                            # Change exports
+                            for export in data["Exports"]:
+                                if filename.casefold().split(".")[0] == export["ObjectName"].casefold(): export["ObjectName"] = skin.partition("Mesh/")[2]
+                            f.seek(0)
+                            json.dump(data, f, indent=4)
 
-                os.makedirs(os.path.join("assets/mod/HerovsGame/Content/Character/", Path(skin).parent))
-                # Import JSON to UAsset
-                final_path = "assets/mod/HerovsGame/Content/Character/"
-                subprocess.run([uejsonPath, "-i", json_path])
-                for file in Path(mesh_path).iterdir():
-                    if (file.name.casefold().split(".")[0] == filename.casefold().split(".")[0]) and (file.name.endswith('.uasset') or file.name.endswith('.uexp')):
-                        os.rename(os.path.join(mesh_path, file.name), final_path + skin + "." + file.name.split(".")[1])
-                if os.path.exists(json_path): os.remove(json_path) 
-                #Save mod pak
-                save_path = QtWidgets.QFileDialog.getSaveFileName(self, "Save Mod PAK", "", "PAK files (*.pak)")
-                if save_path[0].partition(".")[0].endswith("_P"):
-                    exportPath = save_path[0].partition(".")[0] + ".pak"
-                elif save_path[0] != "":
-                    exportPath = save_path[0].partition(".")[0] + "_P.pak"
-                else:
-                    exportPath = save_path[0].partition(".")[0] + "SkinSwap_P.pak"
-                with open('dependencies/unrealpak/unrealpak.txt', 'w') as f:
-                    mod_folder = os.path.abspath('assets/mod')
-                    f.write(f'"{mod_folder}\\*.*" "..\\..\\..\\*.*"')
-                subprocess.run([unrealPak, exportPath, '-create=unrealpak.txt', '-compress'])
-            print('Error: mesh file not found')
+                        os.makedirs(os.path.join("assets/mod/HerovsGame/Content/Character/", Path(skin).parent))
+                        # Import JSON to UAsset
+                        final_path = "assets/mod/HerovsGame/Content/Character/"
+                        subprocess.run([uejsonPath, "-i", json_path])
+                        for file in Path(mesh_path).iterdir():
+                            if (file.name.casefold().split(".")[0] == filename.casefold().split(".")[0]) and (file.name.endswith('.uasset') or file.name.endswith('.uexp')):
+                                os.rename(os.path.join(mesh_path, file.name), final_path + skin + "." + file.name.split(".")[1])
+                        if os.path.exists(json_path): os.remove(json_path) 
+                        #Save mod pak
+                        save_path = QtWidgets.QFileDialog.getSaveFileName(self, "Save Mod PAK", "", "PAK files (*.pak)")
+                        if save_path[0].partition(".")[0].endswith("_P"):
+                            exportPath = save_path[0].partition(".")[0] + ".pak"
+                        elif save_path[0] != "":
+                            exportPath = save_path[0].partition(".")[0] + "_P.pak"
+                        else:
+                            exportPath = save_path[0].partition(".")[0] + "SkinSwap_P.pak"
+                        with open(resource_path('dependencies/unrealpak/unrealpak.txt'), 'w') as f:
+                            mod_folder = os.path.abspath('assets/mod')
+                            f.write(f'"{mod_folder}\\*.*" "..\\..\\..\\*.*"')
+                        subprocess.run([unrealPak, exportPath, '-create=unrealpak.txt', '-compress'])
         # Clean up and prepare for next export
         if os.path.exists('dependencies/unrealpak/unrealpak.txt'): os.remove('dependencies/unrealpak/unrealpak.txt')
         shutil.rmtree("assets/mod")
         subprocess.run([repakPath, "unpack", "-o", f"assets/mod", self.mod_file])
 
 if __name__ == "__main__":
+    # Check .NET runtime installation
+    netInstalled = False
+    try:
+        proc = subprocess.Popen(['dotnet', '--list-runtimes'], stdout=subprocess.PIPE)
+        output = proc.stdout.read().split(b'\n')
+        for line in output:
+            if b'Microsoft.NETCore.App' in line and b'8.0.' in line:
+                netInstalled = True
+        if not netInstalled:
+         raise Exception
+    except Exception as e:
+        input("This application requires .NET 8.0 runtime to be installed. Please install it from https://dotnet.microsoft.com/en-us/download/dotnet and try again.")
+        raise
+
+    
     print("Launching program, it might take a while the first time!")
     app = QtWidgets.QApplication([])
 
@@ -265,22 +282,23 @@ if __name__ == "__main__":
     if not os.path.exists(gamePath): sys.exit()
 
     # Extract characters PA and skins images using repak
-    subprocess.run([repakPath, "--aes-key", aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][1-9]/PA_Ch[0-9][0-9][0-9].*", gamePath])
-    subprocess.run([repakPath, "--aes-key", aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][1-9]/GUI/Costume/L/*0_*L.*", gamePath])
+    subprocess.run([repakPath, "--aes-key", aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][0-9]/PA_Ch[0-9][0-9][0-9].*", gamePath])
+    subprocess.run([repakPath, "--aes-key", aesKey, "unpack", "-o", "assets", "-i", "**/Ch[0-3][0-9][0-9]/GUI/Costume/L/*0_*L.*", gamePath])
+    if os.path.exists('assets/HerovsGame/Content/Character/Ch000'): shutil.rmtree('assets/HerovsGame/Content/Character/Ch000')
 
     # Extract JSON files using UEJSON
     import time
     start_time = time.time()
     for character in os.listdir("assets/HerovsGame/Content/Character"):
             print("Checking character: ", character)
-            pa_path = os.path.join("assets/HerovsGame/Content/Character", character, f"PA_{character}.uasset")
+            pa_path = os.path.normpath(os.path.join("assets/HerovsGame/Content/Character", character, f"PA_{character}.uasset"))
             if not os.path.exists(pa_path.replace(".uasset", ".json")):
                 subprocess.run([uejsonPath, "-e", pa_path])
             gui_path = os.path.join("assets\\HerovsGame\\Content\\Character", character, "GUI\\Costume\\L")
             for skinImage in os.listdir(gui_path):
                 skinPath = os.path.join(gui_path, skinImage)
                 if skinImage.endswith(".uasset") and not (os.path.exists(skinPath.replace(".uasset", ".png"))):
-                    subprocess.run([resource_path('dependencies/ue4dds/python/python.exe'),ue4ddsPath, skinPath, f"--save_folder={gui_path}", "--mode=export", "--export_as=tga", "--skip_non_texture"])
+                    subprocess.run([resource_path('dependencies/ue4dds/python/python.exe'),ue4ddsPath, skinPath, f"--save_folder={gui_path}", "--mode=export", "--export_as=tga", "--skip_non_texture", ])
                     subprocess.run([ffmpegPath, "-i", skinPath.replace(".uasset", ".tga"), skinPath.replace(".uasset", ".png")])
     print("Time spent: ", (time.time() - start_time))
 
