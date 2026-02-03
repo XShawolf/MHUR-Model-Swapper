@@ -14,6 +14,7 @@ Tool to swap which skin slot a costume mod replaces in My Hero Ultra Rumble.
 
 # Dependencies
 - UAssetAPI
+- UnrealPak
 - repak
 - UE4-DDS Tools by matyalatte
 - ffmpeg
