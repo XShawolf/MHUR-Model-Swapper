@@ -6,7 +6,6 @@ import shutil
 from PySide6 import QtWidgets, QtGui
 from util import resource_path, uejsonPath, repakPath, ue4ddsPath, ffmpegPath
 from skinslist import SkinsList
-from characterslist import CharactersList
 from choosemod import ChooseModFileWidget
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -19,7 +18,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self.central_widget)
         self.choosemodfile = ChooseModFileWidget(parent=self)
         self.central_widget.addWidget(self.choosemodfile)
-        self.characters_list = CharactersList(parent=self)
     
     def viewSkinsList(self, character, mod_file):
         self.skinsList = SkinsList(character, mod_file)
@@ -30,7 +28,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Clean up extracted mod files on exit
         if os.path.exists("assets/mod"): shutil.rmtree("assets/mod")
         event.accept()
-            
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])
     app.setStyle("windows11") # Temporal until I make my own universal style

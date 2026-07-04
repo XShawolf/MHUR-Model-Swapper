@@ -7,9 +7,8 @@ from PySide6 import QtWidgets, QtGui, QtCore
 from pathlib import Path
 from util import resource_path, uejsonPath, unrealPak, repakPath
 
-# from main import uejsonPath, unrealPak, repakPath 
 class SkinsList(QtWidgets.QScrollArea):
-    def __init__(self, character, mod_file):
+    def __init__(self, character, mod_file=None, parent=None):
         super().__init__()  
         self.items = []
         self.mod_file = mod_file
@@ -31,17 +30,23 @@ class SkinsList(QtWidgets.QScrollArea):
         button.clicked.connect(self.go_back)
         self.layout.addWidget(button, 0, 0)
 
+        # buttonBack = QtWidgets.QPushButton("Go back")
+        # buttonBack.clicked.connect(parent.go_back)
+        # self.layout.addWidget(buttonBack, 1, 0)   
+
         # Add skins buttons
         column = 0
         row = 1
 
-        path = Path("assets/mod/HerovsGame/Content/Character")
-        path = next(path.rglob("Mesh"), None)
-        for file in path.iterdir():
-            if file.parents[1].name == "Default":
-                currentSkin = "SK_" + file.parents[3].name + "_Default_00"
-            else:
-                currentSkin = "SK_" + file.parents[4].name + "_" + file.parents[2].name + file.parents[1].name
+        currentSkin = None
+        if mod_file:
+            path = Path("assets/mod/HerovsGame/Content/Character")
+            path = next(path.rglob("Mesh"), None)
+            for file in path.iterdir():
+                if file.parents[1].name == "Default":
+                    currentSkin = "SK_" + file.parents[3].name + "_Default_00"
+                else:
+                    currentSkin = "SK_" + file.parents[4].name + "_" + file.parents[2].name + file.parents[1].name
 
         for skin in skins:
             skin_id = str(skin[0]["Value"])
@@ -88,7 +93,6 @@ class SkinsList(QtWidgets.QScrollArea):
         # Export mesh JSON
         path = Path("assets/mod/HerovsGame/Content/Character")
         meshPaths = path.rglob("Mesh")
-        # Refactor this thing so I don't get sad when looking at so many indents
         for path in meshPaths:
             for file in path.iterdir():
                 if file.name.casefold().startswith('sk_ch') and file.name.casefold().endswith('_00.uasset'):
@@ -122,7 +126,7 @@ class SkinsList(QtWidgets.QScrollArea):
                             f.seek(0)
                             json.dump(data, f, indent=4)
 
-                        os.makedirs(os.path.join("assets/mod/HerovsGame/Content/Character/", Path(skin).parent))
+                        os.makedirs(os.path.join("assets/mod/HerovsGame/Content/Character/", Path(skin).parent), exist_ok=True)
                         # Import JSON to UAsset
                         final_path = "assets/mod/HerovsGame/Content/Character/"
                         subprocess.run([uejsonPath, "-i", json_path], creationflags=subprocess.CREATE_NO_WINDOW)
@@ -142,6 +146,7 @@ class SkinsList(QtWidgets.QScrollArea):
                             mod_folder = os.path.abspath('assets/mod')
                             f.write(f'"{mod_folder}\\*.*" "..\\..\\..\\*.*"')
                         subprocess.run([unrealPak, exportPath, '-create=unrealpak.txt', '-compress'], creationflags=subprocess.CREATE_NO_WINDOW)
+            break
         # Clean up and prepare for next export
         if os.path.exists('dependencies/unrealpak/unrealpak.txt'): os.remove('dependencies/unrealpak/unrealpak.txt')
         shutil.rmtree("assets/mod")
